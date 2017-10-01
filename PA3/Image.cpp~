@@ -1,0 +1,604 @@
+// including
+#include <istream>
+#include <fstream>
+#include <iostream>
+#include <string.h>
+#include <vector>
+#include "Image.h"
+#include <cmath>
+
+// using
+using namespace std;
+using std::ifstream;
+using std::string;
+using std::cout;
+using std::cerr;
+
+// variables
+int type;
+int width;
+int height;
+int declaredMax;
+int minimum;
+int maximum;
+double average;
+vector<int> pixels;	
+
+// getters and setters
+int Image::getType(){return type;}
+void Image::setType(int t){type = t;}
+int Image::getWidth(){return width;}
+void Image::setWidth(int w){width = w;}
+int Image::getHeight(){return height;}
+void Image::setHeight(int h){height = h;}
+int Image::getDeclaredMax(){return declaredMax;}
+void Image::setDeclaredMax(int d){declaredMax = d;}
+int Image::getMin(){return minimum;}
+void Image::setMin(int mi){minimum = mi;}
+int Image::getMax(){return maximum;}
+void Image::setMax(int ma){maximum = ma;}
+double Image::getAverage(){return average;}
+void Image::setAverage(double ave){average = ave;}
+vector<int>& Image::getPixels(){return pixels;}
+void Image::addPixel(int p){pixels.push_back(p);}
+
+// helper method to check for a comment and read to end of line if found
+int Image::checkForComment(ifstream& input)
+{
+
+	if(input != NULL){
+		if(input.get() == '#'){
+			while(input.get() != '\n')
+			;
+			return 0;
+		}
+		else
+			return -1;
+	}
+
+	return -1;
+}
+
+// helper method to check for magic number at the start of a .pgm file
+int Image::checkMagicNumber(ifstream& input)
+{
+	// check for P
+	unsigned char letter = input.get();
+	if(letter != 'P') return -1;
+	
+	// check for 2
+	unsigned char number = input.get();
+	if(number == '2'){
+		if(!isspace(input.peek())){
+			input.clear();
+			if(checkForComment(input) != 0){
+				return -1;			
+			}
+		}
+		type = 2;
+		return 2;
+	}
+
+	// otherwise, check for 5
+	else if(number == '5'){
+		type = 5;
+		return 5;
+	}
+	else return -1;
+
+}
+
+// helper method to read the next 4 bytes and put into an integer
+int Image::getFourBytes(ifstream& input)
+{
+
+	unsigned char one;
+	input.read((char *)&one, 1);
+	if(input.fail()){
+		return -1;
+	}
+
+	unsigned char two;
+	input.read((char*) &two, 1);
+	if(input.fail()){
+		return -1;
+	}
+
+	unsigned char three;
+	input.read((char*) &three, 1);
+	if(input.fail()){
+		return -1;
+	}
+
+	unsigned char four;
+	input.read((char*) &four, 1);
+	if(input.fail()){
+		return -1;
+	}
+
+	unsigned int oneShift = (unsigned int)one << 24;
+	unsigned int twoShift = (unsigned int)two << 16;
+	unsigned int threeShift = (unsigned int)three << 8;
+	unsigned int fourShift = (unsigned int)four;
+
+	unsigned int newValue = oneShift | twoShift | threeShift | fourShift;
+
+	return newValue;
+	
+}	
+
+	
+
+// helper method to read the next integer value and check for a comment 
+int Image::getValue(ifstream& input)
+{
+	bool valueFound = false;
+	int value;
+	while(valueFound == false){
+		input >> value;
+		if(input.fail()){
+			input.clear();
+			if(checkForComment(input) != 0)
+				return -1;
+		}
+		else
+			valueFound = true;
+	}
+
+	return value;
+}
+
+// helper method to read pixel values from binary file
+int Image::readBinaryPixels(ifstream &input)
+{
+
+	double numPixels = getWidth() * getHeight(); // total number of pixels
+	double addPixels = 0.0; // add up all of the pixel values
+	unsigned char tempPixel; // temp for reading pixel
+
+	// check file size
+	input.seekg(0, ios::end);
+	int size = input.tellg();
+	if(size != (14 + numPixels)){
+		cerr << "ERROR: Number of binary pixels is incorrect." << endl;
+		return -1;
+	}
+
+	// move back to beginning of pixels
+	input.seekg((-1 * numPixels), ios::cur);
+	// cout << input.tellg() << endl;
+	for(int i = 0; i < numPixels; i++){
+		input.read((char*) &tempPixel, 1);
+		int temp = (int)tempPixel;
+		// check pixel value
+		if(temp < 0 || temp > getDeclaredMax() || temp > 255){
+			cerr << "ERROR: Binary pixel value is negative, greater than Delcared Max, or greater than 255." << endl;
+			return -1;
+		}
+
+		else{
+			if(i == 0){
+				setMin(temp);
+				setMax(temp);
+			}
+			else{
+				if(temp < getMin())
+					setMin(temp);
+				else if(temp > getMax())
+					setMax(temp);
+				}
+			//cout << "Pixel value: " << tempPixel << endl;
+			// add pixel value to the running total
+			addPixels += tempPixel;
+			// add pixel value to the pixels vector
+			addPixel(tempPixel);
+			}
+	}
+
+
+	return 0;
+}
+
+// helper method to read pixel values and find min, max, and average
+int Image::readPixels(ifstream& input)
+{
+
+	// get pixel values
+	double numPixels = 0.0; // total number of pixels
+	double addPixels = 0.0; // add up all of the pixel values
+	int tempPixel; // temp for reading pixel
+
+	// loop through the rest of the file
+	while(!input.eof()){
+		input >> tempPixel; // get next pixel	
+		if(input.fail()){
+			input.clear();
+			if(input.get() == '#'){
+				while(input.get() != '\n')
+				;
+			}
+			else if(input.eof())
+				break;
+			else{
+			    cerr << "ERROR: Invalid character in file." << endl;
+				return -1;
+			}
+		}
+
+		// if you find a valid pixel, test its value
+		else{
+			if(tempPixel < 0 || tempPixel > declaredMax || tempPixel > 255){
+				cerr << "ERROR: Pixel value is negative, greater than Delcared Max, or greater than 255." << endl;
+				return -1;
+			}
+
+			numPixels++;
+			if(numPixels > (width*height)){
+				cerr << "ERROR: Too many pixels." << endl;
+				return -1;
+			}
+
+			// if the value is valid, get the min and max
+			else{
+				if(numPixels == 1){
+					setMin(tempPixel);
+					setMax(tempPixel);
+				}
+				else{
+					if(tempPixel < getMin())
+						setMin(tempPixel);
+					else if(tempPixel > getMax())
+						setMax(tempPixel);
+				}
+				//cout << "Pixel value: " << tempPixel << endl;
+				// add pixel value to the running total
+				addPixels += tempPixel;
+				// add pixel value to the pixels vector
+				addPixel(tempPixel);
+			}
+		}
+	}	
+
+	// make sure there are enough pixels
+	if(numPixels < (width*height)){
+		cerr << "ERROR: Not enough pixels." << endl;
+		return -1;
+	}
+
+	// calculate the average
+	average = (addPixels/numPixels);
+
+	return 0;
+
+}
+
+void Image::printPixels(vector<int>& pixels) const
+{
+
+	for(unsigned int i = 0; i < pixels.size(); i++){
+		cout << pixels[i] << endl;
+	}
+
+}
+
+// method that reads binary image and sets key variables
+int Image::readBinaryImage(ifstream& bistr)
+{
+	// read magic number
+	unsigned char p, five;
+	bistr.read((char*) &p, 1);
+	if(bistr.fail()){
+		cerr << "ERROR: P could not be read in binary" << endl;
+		return -1;
+	}
+	bistr.read((char*) &five, 1);
+	if(bistr.fail()){
+		cerr << "ERROR: 5 could not be read in binary" << endl;
+		return -1;
+	}
+
+	
+	// read width, height, and declaredMax
+	unsigned int w = getFourBytes(bistr);
+	if(w < 1){
+		cerr << "ERROR: Invalid binary width." << endl;
+		return -1;
+	}
+	else setWidth(w);
+
+	unsigned int h = getFourBytes(bistr);
+	if(h < 1){
+		cerr << "ERROR: Invalid binary height." << endl;
+		return -1;
+	}
+	else setHeight(h);
+
+	unsigned int dm = getFourBytes(bistr);
+	if(dm < 0){
+		cerr << "ERROR: Invalid binary declared maximum." << endl;
+		return -1;
+	}
+	else setDeclaredMax(dm);
+
+	// read pixels
+	int test = readBinaryPixels(bistr);
+	if(test < 0)
+		return -1;
+
+	bistr.close();
+	
+
+	return 0;
+
+}
+
+// method that reads ASCII image and sets key variables
+int Image:: readAsciiImage(ifstream& istr)
+{
+
+	// get the width
+	int w = getValue(istr);
+	if(w < 1){
+		cerr << "ERROR: Invalid width." << endl;
+		return -1;
+	}
+	else
+		setWidth(w);
+
+	//cout << "Width is: " << getWidth() << endl;
+
+	// get the height
+	int h = getValue(istr);
+	if(h < 0){
+		cerr << "ERROR: Invalid height." << endl;
+		return -1;
+	}
+	else
+		setHeight(h);
+
+	//cout << "Height is: " << getHeight() << endl;
+
+	// get the declared max
+	int dm = getValue(istr);
+	if(dm < 0 || dm > 256){
+		cerr << "ERROR: Invalid declared max." << endl;
+		return -1;
+	}
+	else
+		setDeclaredMax(dm);
+
+	//cout << "Declared Max is: " << getDeclaredMax() << endl;
+
+	// get pixels
+	int test = readPixels(istr);
+	if(test < 0)
+		return -1;
+
+	// print min, average, and max (separated by whitespace)
+	//cout << getMin() << " " << getAverage() << " " << getMax() << endl;
+
+	// close file
+	istr.close();
+	
+	return 0;
+
+}
+
+// method that reads image and send to Binary or Ascii reading method
+int Image::readImage(string filename)
+{
+	// cout << "Made it to Image.\n" << endl;
+
+	// convert filename to a c string
+	char cstring[100];	
+	strcpy(cstring, filename.c_str());
+
+	// create file input stream
+	ifstream istr;
+	istr.open(cstring, ifstream::in);
+	// check for error
+	if(istr.fail()){
+		cerr << "ERROR: Can't open file for reading." << endl;
+		return -1;
+	}
+
+	int readCheck = 0;
+
+	// check for magic number at beginning of file
+	int magic = checkMagicNumber(istr);
+	// if ASCII, send to readAsciiImage
+	if(magic == 2){
+		readCheck = readAsciiImage(istr);
+	}
+	// if binary, reopen file as binary and send to readBinaryImage
+	else if(magic == 5){
+		istr.close();
+		ifstream bistr;
+		bistr.open(cstring, ios::binary);
+		if(bistr.fail()){
+			cerr << "ERROR: Can't open binary file for reading." << endl;
+			return -1;
+		}
+		else{
+			readCheck = readBinaryImage(bistr);
+		}
+	}
+	// otherwise, throw error
+	else{			
+		cerr << "ERROR: File does not start with P2 or P5." << endl;
+		return -1;
+	}
+	
+	return readCheck;
+}
+
+// method to rescale an image for better viewing
+int Image::rescaleImage(){
+
+	double numPixels = 0.0; // total number of pixels
+	double addPixels = 0.0; // add up all of the new pixel values	
+
+	// check for invalid image
+	if(getMax() == getMin()){
+		cerr << "ERROR: Invalid image. Max == Min." << endl;
+		return -1;
+	}
+
+	for(unsigned int i = 0; i < getPixels().size(); i++){
+		double newValue = (255 * ((double)getPixels()[i]- (double)getMin())) / ((double)getMax() - (double)getMin());
+		newValue = round(newValue);
+		getPixels()[i] = newValue;
+		numPixels++;
+		addPixels += newValue;
+	}	
+
+	// set new Image values
+	setDeclaredMax(255);
+	setMin(0);
+	setMax(255);
+	setAverage(addPixels/numPixels);	
+
+	return 0;
+}
+
+
+// method to write ASCII Image to a .pgma file
+int Image::writeAsciiImage(string filename){
+
+	// convert filename to a c string
+	char cstring[100];	
+	strcpy(cstring, filename.c_str());
+
+	// create file output stream
+	ofstream ostr;
+	ostr.open(cstring);
+	// check for error
+	if(ostr.fail()){
+		cerr << "ERROR: Can't open file for writing ASCII Image." << endl;
+		return -1;
+	}
+
+	// print "P2"
+	ostr << "P2 ";
+
+	// print width, height, declaredMax
+	ostr << getWidth() << " " << getHeight() << " " << getDeclaredMax() << "\n" << "\n";
+
+	// print pixels
+	int index = 0;
+	for(int i = 0; i < getHeight(); i++){
+		for(int j = 0; j < getWidth(); j++){
+			ostr << getPixels()[index] << " ";
+			index++;
+		}
+		ostr << "\n";
+	}
+
+	ostr.close();
+
+	return 0;
+}
+
+// method to write a binary image to a file
+int Image::writeBinaryImage(string filename)
+{
+	// convert filename to a c string
+	char cstring[100];	
+	strcpy(cstring, filename.c_str());
+
+	// create file output stream
+	ofstream ostr;
+	ostr.open(cstring, ios::binary);
+	// check for error
+	if(ostr.fail()){
+		cerr << "ERROR: Can't open file for writing binary image." << endl;
+		return -1;
+	}
+
+	// print header
+	unsigned char p = 'P';
+	unsigned char five = '5';
+	ostr.write((char*) &p, 1);
+	ostr.write((char*) &five, 1);
+
+	// masks
+	int mask1 = 255 << 24;
+	int mask2 = 255 << 16;
+	int mask3 = 255 << 8;
+	int mask4 = 255;
+
+	// print width
+	int w = getWidth();
+	int shiftedW1 = (w & mask1) >> 24;
+	//cout << shiftedW1 << endl;
+	ostr.write((char*) &shiftedW1, 1);
+
+	int shiftedW2 = (w & mask2) >> 16;
+	//cout << shiftedW2 << endl;
+	ostr.write((char*) &shiftedW2, 1);
+
+	int shiftedW3 = (w & mask3) >> 8;
+	//cout << shiftedW3 << endl;
+	ostr.write((char*) &shiftedW3, 1);
+
+	int shiftedW4 = w & mask4;
+	//cout << shiftedW4 << endl;
+	ostr.write((char*) &shiftedW4, 1);
+	
+	// print height
+	int h = getHeight();
+	int shiftedH1 = (h & mask1) >> 24;
+	ostr.write((char*) &shiftedH1, 1);
+
+	int shiftedH2 = (h & mask2) >> 16;
+	ostr.write((char*) &shiftedH2, 1);
+
+	int shiftedH3 = (h & mask3) >> 8;
+	ostr.write((char*) &shiftedH3, 1);
+
+	int shiftedH4 = (h & mask4);
+	ostr.write((char*) &shiftedH4, 1);
+
+	// print declared max
+	int dm = getDeclaredMax();
+	unsigned int maskedDM1 = dm & 16777215;
+	unsigned char shiftedDM1 = maskedDM1 >> 24;
+	ostr.write((char*) &shiftedDM1, 1);
+	unsigned int maskedDM2 = dm & 4278255615;
+	unsigned char shiftedDM2 = maskedDM2 >> 16;
+	ostr.write((char*) &shiftedDM2, 1);
+	unsigned int maskedDM3 = dm & 4294902015;
+	unsigned char shiftedDM3 = maskedDM3 >> 8;
+	ostr.write((char*) &shiftedDM3, 1);
+	unsigned int maskedDM4 = dm & 4294967040;
+	ostr.write((char*) &maskedDM4, 1);
+
+	// print pixels
+	for(unsigned int i = 0; i < getPixels().size(); i++){
+		unsigned char pixel = (unsigned char)getPixels()[i];
+		ostr.write((char*) &pixel, 1);
+	}
+
+	ostr.close();
+	
+	return 0;
+
+}
+
+int Image::writeImage(string filename)
+{
+
+	int writeCheck = 0;
+	
+	if(filename.substr(filename.length()-5,filename.length()-1) == ".pgma"){
+		writeCheck = writeAsciiImage(filename);
+	}
+	else{
+		writeCheck = writeBinaryImage(filename);
+	}
+
+	return writeCheck;
+
+}
+
+

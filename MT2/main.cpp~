@@ -1,0 +1,55 @@
+#include<iostream>
+using std::cout;
+using std::endl;
+#include <sstream>
+using std::istringstream;
+#include <vector>
+using std::vector;
+#include "Shape.h"
+
+int Vertex::vertex_ctr = 0;
+int Shape::shape_ctr = 0;
+
+int main(int argc, char* argv[])
+{/*
+	Vertex v(1,2);
+	Vertex w = v;
+	cout << v.Ctr() << endl;
+	cout << w.Ctr() << endl;
+	cout << v.X() << endl;
+	cout << v.Y() << endl;
+	*/
+	
+	ColorPolygon* cp = new ColorPolygon();
+	if(dynamic_cast<Polygon*>(cp)){
+		cout << "yes " << endl;
+	Polygon* p = dynamic_cast<Polygon*>(cp);
+	
+
+	
+	
+	/*
+	vector<Shape*> s;
+	s.push_back(new ColorPolygon());
+	s.push_back(new Circle());
+	delete s.at(0);
+	delete s.at(1);
+
+	Polygon* p = new Polygon();
+	if(dynamic_cast<Shape*>(p)) delete dynamic_cast<Shape*>(p);	
+
+	Polygon* p = new Polygon();
+	dynamic_cast<ColorPolygon*>(p);
+	delete p;
+
+	ColorPolygon* cp = new ColorPolygon();
+	dynamic_cast<Polygon*>(cp);
+	delete cp;
+	
+	Polygon p;
+	Polygon q;
+	p==q;
+	*/
+
+	return 0;
+}

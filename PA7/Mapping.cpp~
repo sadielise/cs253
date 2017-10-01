@@ -1,0 +1,74 @@
+#include "Mapping.h"
+#include <vector>
+#include <math.h>
+
+// using
+using namespace std;
+using std::string;
+using std::cout;
+using std::cerr;
+
+void Mapping::findPixels(vector<int>& pixel, int j){
+
+	vector<int> tempSource;
+	vector<int> tempDest;
+
+	// check for key point
+	int rowIndex = keypoint.isKeyPoint(pixel, j);
+	if(rowIndex != -1){
+		//cout << "key point!" << endl;
+		vector<int> row = keypoint.getKeyPointsAt(rowIndex);
+		tempSource.push_back(row[0]);
+		tempSource.push_back(row[1]);
+		tempDest.push_back(row[row.size()-2]);
+		tempDest.push_back(row[row.size()-1]);		
+	}	
+
+	// otherwise find source and destination
+	else{
+		getSumOfWeights(pixel, j);
+
+		double tempDeltaXS = (sumOfWeightsXS/sumOfWeights);
+		double tempDeltaYS = (sumOfWeightsYS/sumOfWeights);
+		int deltaXS = round(tempDeltaXS);
+		int deltaYS = round(tempDeltaYS);
+		tempSource.push_back(pixel[0] - deltaXS);
+		tempSource.push_back(pixel[1] - deltaYS);
+
+		double tempDeltaXD = (sumOfWeightsXD/sumOfWeights);
+		double tempDeltaYD = (sumOfWeightsYD/sumOfWeights);
+		int deltaXD = round(tempDeltaXD);
+		int deltaYD = round(tempDeltaYD);
+		tempDest.push_back(pixel[0] - deltaXD);
+		tempDest.push_back(pixel[1] - deltaYD);
+	}
+	sourcePixel = tempSource;
+	destPixel = tempDest;		
+}
+
+void Mapping::getSumOfWeights(vector<int>& pixel, int j){
+	double sumWeights = 0.0;
+	double sumWeightsXS = 0.0;
+	double sumWeightsXD = 0.0;
+	double sumWeightsYS = 0.0;
+	double sumWeightsYD = 0.0;
+	for(int i = 0; i < keypoint.getKeyPointsSize(); i++){
+		double xDiff = pixel[0] - keypoint.getKeyPointsAt(i, (2*j));
+		double yDiff = pixel[1] - keypoint.getKeyPointsAt(i, (2*j+1));
+		double weight = (1/((pow(xDiff,2)) + (pow(yDiff,2))));
+		double xsWeight = keypoint.getSourceWeightsAt(i, (2*(j-1)));
+		double xdWeight = keypoint.getDestWeightsAt(i, (2*(j-1)));
+		double ysWeight = keypoint.getSourceWeightsAt(i, (2*(j-1)+1));
+		double ydWeight = keypoint.getDestWeightsAt(i, (2*(j-1)+1));
+		sumWeights += weight;
+		sumWeightsXS += (weight * xsWeight);
+		sumWeightsXD += (weight * xdWeight);
+		sumWeightsYS += (weight * ysWeight);
+		sumWeightsYD += (weight * ydWeight);
+	}
+	sumOfWeights = sumWeights;
+	sumOfWeightsXS = sumWeightsXS;
+	sumOfWeightsXD = sumWeightsXD;
+	sumOfWeightsYS = sumWeightsYS;
+	sumOfWeightsYD = sumWeightsYD;
+}

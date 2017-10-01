@@ -1,0 +1,5 @@
+Polymorphism is using one interface to implement many types of classes.
+
+A virtual function is one that will be redefined in classes that inherit from it. 
+
+Static binding resolved references at compile time. Dynamic binding resolves references at run time. 

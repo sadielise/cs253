@@ -1,0 +1,67 @@
+// including
+#include <istream>
+#include <fstream>
+#include <iostream>
+#include <string.h>
+#include <vector>
+#include <cmath>
+
+// using
+using namespace std;
+using std::istream;
+using std::string;
+using std::cout;
+using std::cerr;
+
+class Image
+{
+private:
+	
+	int width;
+	int height;
+	int declaredMax;
+	int min;
+	int max;
+	double average;
+	vector<int> pixels;	
+
+public:
+
+	// getters and setters
+	int getWidth(){return width;}
+	void setWidth(int w){width = w;}
+	int getHeight(){return height;}
+	void setHeight(int h){height = h;}
+	int getDeclaredMax(){return declaredMax;}
+	void setDeclaredMax(int d){declaredMax = d;}
+	int getMin(){return min;}
+	void setMin(int mi){min = mi;}
+	int getMax(){return max;}
+	void setMax(int ma){max = ma;}
+	double getAverage(){return average;}
+	void setAverage(double ave){average = ave;}
+	vector<int>& getPixels(){return pixels;}
+	void addPixel(int p){pixels.push_back(p);}
+
+	// functions
+	Image(){
+		width = 0;
+		height = 0;
+		declaredMax = 0;
+		min = 0;
+		max = 0;
+		average = 0.0;
+	}
+	int checkForComment(ifstream& input);
+	int checkForP2(ifstream& input);
+	int getValue(ifstream& input);
+	int readPixels(ifstream& input);
+	void printPixels(vector<int>& pixels) const;
+	int readImage(string filename);
+	int rescaleImage();
+	int writeImage(string filename);
+
+};
+
+
+

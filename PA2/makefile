@@ -1,0 +1,14 @@
+FILES = main.cpp Image.cpp
+CC = g++
+CFLAGS = -Wall
+
+pa2: Image.o main.o
+	$(CC) $(CFLAGS) -g -I. $(FILES) -o pa2
+
+main.o: main.cpp
+	$(CC) $(CFLAGS) -c main.cpp
+
+Image.o: Image.cpp Image.h
+	$(CC) $(CFLAGS) -c Image.cpp
+
+
